@@ -79,8 +79,8 @@ class ReviewPreprocessor:
 
     def check_missing_data(self):
         """Check for missing data"""
-        # Print a header for this step [1/7]
-        print("\n[1/7] Checking for missing data...")
+        # Print a header for this step [1/8]
+        print("\n[1/8] Checking for missing data...")
 
         # Calculate the count of missing (null) values for each column
         missing = self.df.isnull().sum()
@@ -113,8 +113,8 @@ class ReviewPreprocessor:
 
     def remove_duplicates(self):
         """Remove duplicate reviews"""
-        # Print a header for this step [2/7]
-        print("\n[2/7] Removing duplicates...")
+        # Print a header for this step [2/8]
+        print("\n[2/8] Removing duplicates...")
 
         # Store the current number of rows before removing duplicates
         initial_count = len(self.df)
@@ -138,8 +138,8 @@ class ReviewPreprocessor:
 
     def handle_missing_values(self):
         """Handle missing values"""
-        # Print a header for this step [3/7]
-        print("\n[3/7] Handling missing values...")
+        # Print a header for this step [3/8]
+        print("\n[3/8] Handling missing values...")
 
         # Define the critical columns again
         critical_cols = ['review_text', 'rating', 'bank_name']
@@ -168,8 +168,8 @@ class ReviewPreprocessor:
 
     def normalize_dates(self):
         """Normalize date formats to YYYY-MM-DD"""
-        # Print a header for this step [4/7]
-        print("\n[4/7] Normalizing dates...")
+        # Print a header for this step [4/8]
+        print("\n[4/8] Normalizing dates...")
 
         try:
             # Convert the 'review_date' column to pandas datetime objects
@@ -191,10 +191,36 @@ class ReviewPreprocessor:
             # Handle errors if date conversion fails
             print(f"WARNING: Error normalizing dates: {str(e)}")
 
+    def is_english(self, text):
+        """
+        Check if text is primarily English using character-based heuristic.
+        Returns True if text contains mostly ASCII letters.
+        
+        Args:
+            text (str): Text to check
+            
+        Returns:
+            bool: True if text appears to be English
+        """
+        if not text or len(text) < 3:
+            return False
+        
+        # Count ASCII letters (a-z, A-Z)
+        ascii_letters = sum(1 for c in text if c.isascii() and c.isalpha())
+        # Count all alphabetic characters (including non-ASCII like Amharic)
+        all_letters = sum(1 for c in text if c.isalpha())
+        
+        # If no letters at all, consider it non-English
+        if all_letters == 0:
+            return False
+        
+        # Text is English if >70% of letters are ASCII
+        return (ascii_letters / all_letters) > 0.7
+
     def clean_text(self):
         """Clean review text"""
-        # Print a header for this step [5/7]
-        print("\n[5/7] Cleaning text...")
+        # Print a header for this step [5/8]
+        print("\n[5/8] Cleaning text...")
 
         def clean_review_text(text):
             """Inner function to clean individual review text strings"""
@@ -235,10 +261,38 @@ class ReviewPreprocessor:
         self.stats['empty_reviews_removed'] = removed
         self.stats['count_after_cleaning'] = len(self.df)
 
+    def filter_english_reviews(self):
+        """Filter to keep only English language reviews"""
+        # Print a header for this step [6/8]
+        print("\n[6/8] Filtering English reviews...")
+        
+        # Store count before filtering
+        before_count = len(self.df)
+        
+        # Apply language detection and create a boolean mask
+        self.df['is_english'] = self.df['review_text'].apply(self.is_english)
+        
+        # Count non-English reviews before removing
+        non_english_count = len(self.df[~self.df['is_english']])
+        
+        # Keep only English reviews
+        self.df = self.df[self.df['is_english']]
+        
+        # Drop the helper column
+        self.df = self.df.drop(columns=['is_english'])
+        
+        # Print results
+        print(f"Removed {non_english_count} non-English reviews")
+        print(f"Remaining English reviews: {len(self.df)}")
+        
+        # Record stats
+        self.stats['non_english_removed'] = non_english_count
+        self.stats['count_after_language_filter'] = len(self.df)
+
     def validate_ratings(self):
         """Validate rating values (should be 1-5)"""
-        # Print a header for this step [6/7]
-        print("\n[6/7] Validating ratings...")
+        # Print a header for this step [7/8]
+        print("\n[7/8] Validating ratings...")
 
         # Find rows where 'rating' is less than 1 OR greater than 5
         invalid = self.df[(self.df['rating'] < 1) | (self.df['rating'] > 5)]
@@ -258,8 +312,8 @@ class ReviewPreprocessor:
 
     def prepare_final_output(self):
         """Prepare final output format"""
-        # Print a header for this step [7/7]
-        print("\n[7/7] Preparing final output...")
+        # Print a header for this step [8/8]
+        print("\n[8/8] Preparing final output...")
 
         # Define a list of columns in the desired order for the final output file
         output_columns = [
@@ -334,6 +388,7 @@ class ReviewPreprocessor:
         print(f"Duplicates removed: {self.stats.get('duplicates_removed', 0)}")
         print(f"Records with missing critical data: {self.stats.get('rows_removed_missing', 0)}")
         print(f"Empty reviews removed: {self.stats.get('empty_reviews_removed', 0)}")
+        print(f"Non-English reviews removed: {self.stats.get('non_english_removed', 0)}")
         print(f"Invalid ratings removed: {self.stats.get('invalid_ratings_removed', 0)}")
         print(f"Final records: {self.stats.get('final_count', 0)}")
 
@@ -401,6 +456,7 @@ class ReviewPreprocessor:
         self.handle_missing_values()
         self.normalize_dates()
         self.clean_text()
+        self.filter_english_reviews()
         self.validate_ratings()
         self.prepare_final_output()
 
