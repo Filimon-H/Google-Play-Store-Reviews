@@ -53,31 +53,29 @@ class PlayStoreScraper:
             print(f"Error getting app info for {app_id}: {str(e)}")
             return None
 
-    def scrape_reviews(self, app_id, count=400):
+    def scrape_reviews(self, app_id, count=1500):
         """
-        Scrape reviews for a specific app
+        Scrape reviews for a specific app using reviews_all for maximum coverage
 
         Args:
             app_id (str): Google Play Store app ID
-            count (int): Number of reviews to scrape
+            count (int): Target number of reviews (used as reference)
 
         Returns:
             list: List of review dictionaries
         """
         print(f"\nScraping reviews for {app_id}...")
+        print(f"Target: {count} reviews (will scrape all available)")
 
         for attempt in range(self.max_retries):
             try:
-                # Scrape reviews using reviews_all method
-                result, _ = reviews(
-                #result = reviews_all(
+                # Use reviews_all to get ALL available reviews (no limit)
+                result = reviews_all(
                     app_id,
-                    #sleep_milliseconds=0,
+                    sleep_milliseconds=100,  # Small delay to avoid rate limiting
                     lang=self.lang,
                     country=self.country,
                     sort=Sort.NEWEST,
-                    count=count,
-                    filter_score_with=None # 
                 )
 
                 print(f"Successfully scraped {len(result)} reviews")
