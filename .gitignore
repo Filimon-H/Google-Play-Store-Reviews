@@ -42,6 +42,7 @@ notebooks/data
 !dashboard/data/reviews_final.csv
 
 models/
+schema.sql
 
 # Streamlit secrets (never commit!)
 .streamlit/secrets.toml
