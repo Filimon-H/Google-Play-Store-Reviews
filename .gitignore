@@ -37,7 +37,10 @@ ENV/
 env.bak/
 venv.bak/
 .venv  
-data/
+data/*
+notebooks/data
+!dashboard/data/reviews_final.csv
+
 models/
 
 # Streamlit secrets (never commit!)
