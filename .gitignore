@@ -37,12 +37,26 @@ ENV/
 env.bak/
 venv.bak/
 .venv  
-data/*
+
 notebooks/data
 !dashboard/data/reviews_final.csv
 
 models/
-schema.sql
 
 # Streamlit secrets (never commit!)
 .streamlit/secrets.toml
+
+
+# Ignore everything in data/
+data/*
+
+
+
+# Allow processed folder
+!data/processed/
+data/processed/*.csv
+# Allow visualizations folder
+!data/processed/visualizations/
+
+# Allow all files inside visualizations
+!data/processed/visualizations/*
