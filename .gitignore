@@ -39,3 +39,6 @@ venv.bak/
 .venv  
 data/
 models/
+
+# Streamlit secrets (never commit!)
+.streamlit/secrets.toml
