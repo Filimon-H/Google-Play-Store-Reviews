@@ -18,16 +18,8 @@ import pandas as pd
 import plotly.express as px
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
-import sys
 import os
-from collections import Counter
-import numpy as np
-
-# Add src to path (go up one level from dashboard folder to find src)
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'src'))
-
-from database import DatabaseManager
-from sqlalchemy import text
+from pathlib import Path
 
 # Color Palette
 COLORS = {
@@ -405,50 +397,44 @@ st.markdown(f"""
 """, unsafe_allow_html=True)
 
 
-@st.cache_resource
-def get_database_connection():
-    """Create and cache database connection.
-    Supports both local .env and Streamlit Cloud secrets.
-    """
-    # Check if running on Streamlit Cloud (secrets available)
-    try:
-        if hasattr(st, 'secrets') and 'database' in st.secrets:
-            # Use Streamlit secrets
-            from sqlalchemy import create_engine
-            db_config = st.secrets["database"]
-            connection_string = f"postgresql://{db_config['DB_USER']}:{db_config['DB_PASSWORD']}@{db_config['DB_HOST']}:{db_config['DB_PORT']}/{db_config['DB_NAME']}"
-            engine = create_engine(connection_string)
-            
-            # Create a simple object with engine attribute
-            class CloudDB:
-                def __init__(self, eng):
-                    self.engine = eng
-            return CloudDB(engine)
-    except Exception:
-        pass
-    
-    # Fall back to local DatabaseManager
-    db = DatabaseManager()
-    db.connect()
-    return db
-
-
 @st.cache_data(ttl=300)
 def load_data():
-    """Load data from PostgreSQL database."""
-    db = get_database_connection()
+    """Load data from CSV file."""
+    # Get the path to the data file
+    dashboard_dir = Path(__file__).parent
+    project_root = dashboard_dir.parent
     
-    query = """
-        SELECT r.*, b.bank_name, b.bank_code
-        FROM reviews r
-        JOIN banks b ON r.bank_id = b.bank_id;
-    """
+    # Try multiple possible locations for the CSV
+    possible_paths = [
+        dashboard_dir / 'data' / 'reviews_final.csv',  # dashboard/data/
+        project_root / 'data' / 'processed' / 'reviews_final.csv',  # data/processed/
+        project_root / 'data' / 'reviews_final.csv',  # data/
+    ]
     
-    with db.engine.connect() as conn:
-        df = pd.read_sql(query, conn)
+    csv_path = None
+    for path in possible_paths:
+        if path.exists():
+            csv_path = path
+            break
+    
+    if csv_path is None:
+        st.error("❌ Data file not found! Please ensure 'reviews_final.csv' exists.")
+        st.info("Expected locations: dashboard/data/ or data/processed/")
+        st.stop()
+    
+    df = pd.read_csv(csv_path)
     
     # Convert date
     df['review_date'] = pd.to_datetime(df['review_date'])
+    
+    # Add bank_name if not present (map from bank column)
+    if 'bank_name' not in df.columns and 'bank' in df.columns:
+        bank_mapping = {
+            'CBE': 'Commercial Bank of Ethiopia',
+            'BOA': 'Bank of Abyssinia',
+            'Dashen': 'Dashen Bank'
+        }
+        df['bank_name'] = df['bank'].map(bank_mapping)
     
     return df
 
@@ -503,13 +489,8 @@ def create_chart_layout():
 
 
 def main():
-    # Load data
-    try:
-        df = load_data()
-    except Exception as e:
-        st.error(f"Failed to connect to database: {str(e)}")
-        st.info("Make sure PostgreSQL is running and .env credentials are correct.")
-        return
+    # Load data from CSV
+    df = load_data()
     
     # Sidebar Filters
     st.sidebar.title("📊 Analytics")
